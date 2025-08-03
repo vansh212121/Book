@@ -1,0 +1,261 @@
+from typing import Optional, List, Dict, Any
+from datetime import datetime, date
+from enum import Enum
+
+from pydantic import (
+    BaseModel,
+    EmailStr,
+    Field,
+    ConfigDict,
+    field_validator,
+    model_validator,
+)
+
+from app.models.user_model import UserRole
+
+
+class UserBase(BaseModel):
+    """Base schema for user data."""
+
+    first_name: str = Field(
+        ...,
+        min_length=2,
+        max_length=25,
+        description="User's first name",
+        examples=["John"],
+    )
+    last_name: str = Field(
+        ...,
+        min_length=2,
+        max_length=25,
+        description="User's full name",
+        examples=["Doe"],
+    )
+    username: str = Field(
+        ...,
+        min_length=3,
+        max_length=25,
+        pattern=r"^[a-zA-Z0-9_-]+$",
+        description="Unique username",
+    )
+    email: EmailStr = Field(
+        ..., description="User's email address", examples=["user@example.com"]
+    )
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, v: Optional[str]) -> Optional[str]:
+        """Validate and normalize username."""
+        if v:
+            return v.lower().strip()
+        return v
+
+    @field_validator("first_name")
+    @classmethod
+    def validate_first_name(cls, v: str) -> str:
+        """Validate and clean first name."""
+        return " ".join(v.strip().split())  # Remove extra whitespace
+
+    @field_validator("last_name")
+    @classmethod
+    def validate_last_name(cls, v: str) -> str:
+        """Validate and clean last name."""
+        return " ".join(v.strip().split())  # Remove extra whitespace
+
+
+class UserCreate(UserBase):
+    password: str = Field(
+        ...,
+        min_length=6,
+        max_length=30,
+        description="Strong password",
+        examples=["SecurePass123!"],
+    )
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        """Basic password strength validation."""
+        if not any(c.isupper() for c in v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not any(c.islower() for c in v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain at least one digit")
+        return v
+
+
+class UserUpdate(BaseModel):
+    first_name: Optional[str] = Field(
+        None,
+        min_length=2,
+        max_length=25,
+        description="User's New First name",
+        examples=["John"],
+    )
+    last_name: Optional[str] = Field(
+        None,
+        min_length=2,
+        max_length=25,
+        description="User's New Last name",
+        examples=["Doe"],
+    )
+    username: Optional[str] = Field(
+        None,
+        min_length=3,
+        max_length=25,
+        pattern=r"^[a-zA-Z0-9_-]+$",
+        description="Unique username",
+    )
+    email: Optional[EmailStr] = Field(None, description="New email address")
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, v: Optional[str]) -> Optional[str]:
+        """Validate and normalize username."""
+        if v:
+            return v.lower().strip()
+        return v
+
+    @field_validator("first_name")
+    @classmethod
+    def validate_first_name(cls, v: str) -> str:
+        """Validate and clean first name."""
+        return " ".join(v.strip().split())  # Remove extra whitespace
+
+    @field_validator("last_name")
+    @classmethod
+    def validate_last_name(cls, v: str) -> str:
+        """Validate and clean last name."""
+        return " ".join(v.strip().split())  # Remove extra whitespace
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_at_least_one_field(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        """Ensure at least one field is provided for update."""
+        if not any(v is not None for v in values.values()):
+            raise ValueError("At least one field must be provided for update")
+        return values
+
+
+# --- Response Schemas ---
+class UserResponse(UserBase):
+    """Basic user response schema."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int = Field(..., description="User ID")
+    role: UserRole = Field(..., description="User role")
+    is_verified: bool = Field(..., description="Email verification status")
+    is_active: bool = Field(..., description="Account active status")
+    created_at: datetime = Field(..., description="Registration timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
+    deleted_at: Optional[datetime] = Field(None, description="Deletion timestamp")
+
+
+class UserBasicResponse(BaseModel):
+    """Minimal user response for inclusion in other schemas."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int = Field(..., description="User ID")
+    username: str = Field(..., description="Username")
+    first_name: str = Field(..., description="First name")
+    last_name: str = Field(..., description="Last name")
+
+
+class UserPublicResponse(BaseModel):
+    """Public user information (for other users)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int = Field(..., description="User ID")
+    username: str = Field(..., description="Username")
+    first_name: str = Field(..., description="First name")
+    last_name: str = Field(..., description="Last name")
+    is_verified: bool = Field(..., description="Verification status")
+    created_at: datetime = Field(..., description="Member since")
+
+    # class UserDetailedResponse(UserResponse):
+    """Detailed user response with additional information."""
+
+
+#     verified_at: Optional[datetime] = Field(None, description="Verification timestamp")
+#     book_count: int = Field(default=0, description="Number of books created")
+#     review_count: int = Field(default=0, description="Number of reviews written")
+
+#     @classmethod
+#     def from_orm_with_counts(cls, user: Any) -> "UserDetailedResponse":
+#         """Create response with computed counts."""
+#         return cls(
+#             **user.__dict__,
+#             book_count=len(user.books) if hasattr(user, "books") else 0,
+#             review_count=len(user.reviews) if hasattr(user, "reviews") else 0
+#         )
+
+
+# --- List & Search Schemas ---
+class UserListResponse(BaseModel):
+    """Response for paginated user list."""
+
+    items: List[UserResponse] = Field(..., description="List of users")
+    total: int = Field(..., ge=0, description="Total number of users")
+    page: int = Field(..., ge=1, description="Current page number")
+    pages: int = Field(..., ge=0, description="Total number of pages")
+    size: int = Field(..., ge=1, le=100, description="Number of items per page")
+
+    @property
+    def has_next(self) -> bool:
+        """Check if there's a next page."""
+        return self.page < self.pages
+
+    @property
+    def has_previous(self) -> bool:
+        """Check if there's a previous page."""
+        return self.page > 1
+
+
+# --- Password Management Schemas ---
+class UserPasswordChange(BaseModel):
+    """Schema for changing password (authenticated users)."""
+
+    current_password: str = Field(..., description="current password")
+    new_password: str = Field(
+        ...,
+        min_length=6,
+        max_length=30,
+        description="Strong password",
+        examples=["SecurePass123!"],
+    )
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        """Basic password strength validation."""
+        if not any(c.isupper() for c in v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not any(c.islower() for c in v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain at least one digit")
+        return v
+
+    @model_validator(mode="after")
+    def validate_new_password_is_different(self) -> "UserPasswordChange":
+        # Using a model validator is cleaner for cross-field validation
+        if self.current_password == self.new_password:
+            raise ValueError("New password must be different from the current one")
+        return self
+
+
+__all__ = [
+    "UserBase",
+    "UserCreate",
+    "UserUpdate",
+    # Response schemas
+    "UserResponse",
+    "UserBasicResponse",
+    "UserPublicResponse",
+    # Password schemas
+    "UserPasswordChange",
+]

@@ -35,7 +35,7 @@ class TokenType(str, Enum):
 class SecurityConfig:
     """Validates and holds all security-related configurations."""
 
-    JWT_SECRET_KEY: str = settings.JWT_SECRET_KEY
+    JWT_SECRET_KEY: str = settings.JWT_SECRET
     JWT_ALGORITHM: str = getattr(settings, "JWT_ALGORITHM", "HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = getattr(
         settings, "ACCESS_TOKEN_EXPIRE_MINUTES", 15

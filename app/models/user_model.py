@@ -11,10 +11,11 @@ from datetime import datetime
 from enum import Enum as PyEnum
 from typing import Optional
 
+
 # Using PyEnum to avoid conflict with SQLModel's Enum
 class UserRole(str, PyEnum):
     USER = "user"
-    MODERATOR = "moderator" # Corrected capitalization
+    MODERATOR = "moderator"  # Corrected capitalization
     ADMIN = "admin"
 
     @property
@@ -27,6 +28,7 @@ class UserRole(str, PyEnum):
             return NotImplemented
         return self.priority < other.priority
 
+
 class UserBase(SQLModel):
     first_name: str = Field(
         min_length=2,
@@ -38,14 +40,14 @@ class UserBase(SQLModel):
         min_length=2,
         max_length=25,
         description="User's last name",
-        schema_extra={"example": "Doe"}, # Corrected syntax
+        schema_extra={"example": "Doe"},  # Corrected syntax
     )
     username: str = Field(
         min_length=3,
         max_length=25,
         regex="^[a-zA-Z0-9_-]+$",
         description="User's unique username",
-        schema_extra={"example": "jane_doe_123"}, # Corrected syntax
+        schema_extra={"example": "jane_doe_123"},  # Corrected syntax
     )
     email: str = Field(
         max_length=200,
@@ -63,10 +65,16 @@ class User(UserBase, table=True):
     __tablename__ = "users"
 
     id: Optional[int] = Field(
-        default=None, primary_key=True, description="Unique Identifier"
+        min_length=3,
+        max_length=25,
+        regex="^[a-zA-Z0-9_-]+$",
+        default=None,
+        primary_key=True,
+        description="Unique Identifier",
     )
     email: str = Field(
-        sa_column=Column(String(200), unique=True, nullable=False, index=True)
+        max_length=200,
+        sa_column=Column(String(200), unique=True, nullable=False, index=True),
     )
     username: str = Field(
         sa_column=Column(String(25), nullable=False, index=True, unique=True)
@@ -84,7 +92,7 @@ class User(UserBase, table=True):
         sa_column=Column(
             DateTime(timezone=True),
             server_default=func.now(),
-            server_onupdate=func.now(), # Correctly updates on every change
+            server_onupdate=func.now(),  # Correctly updates on every change
             nullable=False,
         ),
         description="Account last updated timestamp",

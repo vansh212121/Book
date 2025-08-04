@@ -10,15 +10,18 @@ psycopg2
 python-jose
 pydantic[email]
 python-multipart
+argon2-cffi
+passlib[bcrypt]
 redis
 fastapi-mail 
 itsdangerous
-passlib[bcrypt]
 celery
 asgiref
 eventlet
+
+# Testing
+pytest
 pytest-asyncio
 httpx[http2]
 aiosqlite
 fakeredis[aioredis]
-argon2-cffi

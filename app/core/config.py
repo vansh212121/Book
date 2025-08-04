@@ -10,6 +10,7 @@ class Settings(BaseSettings):
 
     # --- Database & JWT Secrets ---
     DATABASE_URL: str
+    TEST_DATABASE_URL: str
     JWT_SECRET: str
 
     # Database Pool Settings

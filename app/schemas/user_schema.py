@@ -44,23 +44,16 @@ class UserBase(BaseModel):
 
     @field_validator("username")
     @classmethod
-    def validate_username(cls, v: Optional[str]) -> Optional[str]:
+    def validate_username(cls, v: str) -> str:
         """Validate and normalize username."""
-        if v:
-            return v.lower().strip()
-        return v
+        return v.lower().strip()
 
-    @field_validator("first_name")
+    @field_validator("first_name", "last_name")
     @classmethod
-    def validate_first_name(cls, v: str) -> str:
-        """Validate and clean first name."""
-        return " ".join(v.strip().split())  # Remove extra whitespace
+    def validate_names(cls, v: str) -> str:
+        """Validate and clean names."""
+        return " ".join(v.strip().split())
 
-    @field_validator("last_name")
-    @classmethod
-    def validate_last_name(cls, v: str) -> str:
-        """Validate and clean last name."""
-        return " ".join(v.strip().split())  # Remove extra whitespace
 
 
 class UserCreate(UserBase):
@@ -117,25 +110,22 @@ class UserUpdate(BaseModel):
             return v.lower().strip()
         return v
 
-    @field_validator("first_name")
+    @field_validator("first_name", "last_name")
     @classmethod
-    def validate_first_name(cls, v: str) -> str:
-        """Validate and clean first name."""
-        return " ".join(v.strip().split())  # Remove extra whitespace
-
-    @field_validator("last_name")
-    @classmethod
-    def validate_last_name(cls, v: str) -> str:
-        """Validate and clean last name."""
-        return " ".join(v.strip().split())  # Remove extra whitespace
+    def validate_names(cls, v: Optional[str]) -> Optional[str]:
+        """Validate and clean names."""
+        if v:
+            return " ".join(v.strip().split())
+        return v
 
     @model_validator(mode="before")
     @classmethod
     def validate_at_least_one_field(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """Ensure at least one field is provided for update."""
-        if not any(v is not None for v in values.values()):
+        if isinstance(values, dict) and not any(v is not None for v in values.values()):
             raise ValueError("At least one field must be provided for update")
         return values
+
 
 
 # --- Response Schemas ---
@@ -175,6 +165,7 @@ class UserPublicResponse(BaseModel):
     last_name: str = Field(..., description="Last name")
     is_verified: bool = Field(..., description="Verification status")
     created_at: datetime = Field(..., description="Member since")
+
 
     # class UserDetailedResponse(UserResponse):
     """Detailed user response with additional information."""
@@ -242,7 +233,6 @@ class UserPasswordChange(BaseModel):
 
     @model_validator(mode="after")
     def validate_new_password_is_different(self) -> "UserPasswordChange":
-        # Using a model validator is cleaner for cross-field validation
         if self.current_password == self.new_password:
             raise ValueError("New password must be different from the current one")
         return self
@@ -256,6 +246,8 @@ __all__ = [
     "UserResponse",
     "UserBasicResponse",
     "UserPublicResponse",
+    # List schemas
+    "UserListResponse",
     # Password schemas
     "UserPasswordChange",
 ]

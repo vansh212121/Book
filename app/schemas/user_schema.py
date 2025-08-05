@@ -12,7 +12,7 @@ from pydantic import (
 )
 
 from app.models.user_model import UserRole
-
+from app.core.exceptions import ValidationError
 
 class UserBase(BaseModel):
     """Base schema for user data."""
@@ -55,7 +55,6 @@ class UserBase(BaseModel):
         return " ".join(v.strip().split())
 
 
-
 class UserCreate(UserBase):
     password: str = Field(
         ...,
@@ -70,11 +69,11 @@ class UserCreate(UserBase):
     def validate_password_strength(cls, v: str) -> str:
         """Basic password strength validation."""
         if not any(c.isupper() for c in v):
-            raise ValueError("Password must contain at least one uppercase letter")
+            raise ValidationError("Password must contain at least one uppercase letter")
         if not any(c.islower() for c in v):
-            raise ValueError("Password must contain at least one lowercase letter")
+            raise ValidationError("Password must contain at least one lowercase letter")
         if not any(c.isdigit() for c in v):
-            raise ValueError("Password must contain at least one digit")
+            raise ValidationError("Password must contain at least one digit")
         return v
 
 
@@ -123,9 +122,8 @@ class UserUpdate(BaseModel):
     def validate_at_least_one_field(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """Ensure at least one field is provided for update."""
         if isinstance(values, dict) and not any(v is not None for v in values.values()):
-            raise ValueError("At least one field must be provided for update")
+            raise ValidationError("At least one field must be provided for update")
         return values
-
 
 
 # --- Response Schemas ---
@@ -165,7 +163,6 @@ class UserPublicResponse(BaseModel):
     last_name: str = Field(..., description="Last name")
     is_verified: bool = Field(..., description="Verification status")
     created_at: datetime = Field(..., description="Member since")
-
 
     # class UserDetailedResponse(UserResponse):
     """Detailed user response with additional information."""
@@ -238,6 +235,63 @@ class UserPasswordChange(BaseModel):
         return self
 
 
+# --- List and Search Schemas ---
+class UserListResponse(BaseModel):
+    """Response for paginated user list."""
+
+    items: List[UserResponse] = Field(..., description="List of users")
+    total: int = Field(..., ge=0, description="Total number of users")
+    page: int = Field(..., ge=1, description="Current page number")
+    pages: int = Field(..., ge=0, description="Total number of pages")
+    size: int = Field(..., ge=1, le=100, description="Number of items per page")
+
+    @property
+    def has_next(self) -> bool:
+        """Check if there's a next page."""
+        return self.page < self.pages
+
+    @property
+    def has_previous(self) -> bool:
+        """Check if there's a previous page."""
+        return self.page > 1
+
+
+class UserSearchParams(BaseModel):
+    """Parameters for searching users."""
+
+    search: Optional[str] = Field(
+        None,
+        min_length=1,
+        max_length=100,
+        description="Search in email, username, full name",
+    )
+    role: Optional[UserRole] = Field(None, description="Filter by role")
+    is_active: Optional[bool] = Field(None, description="Filter by active status")
+    is_verified: Optional[bool] = Field(
+        None, description="Filter by verification status"
+    )
+    created_after: Optional[date] = Field(
+        None, description="Filter users created after this date"
+    )
+    created_before: Optional[date] = Field(
+        None, description="Filter users created before this date"
+    )
+    has_books: Optional[bool] = Field(
+        None, description="Filter users who have/haven't created books"
+    )
+    has_reviews: Optional[bool] = Field(
+        None, description="Filter users who have/haven't written reviews"
+    )
+
+    @model_validator(mode="after")
+    def validate_date_range(self) -> "UserSearchParams":
+        """Ensure date range is valid."""
+        if self.created_after and self.created_before:
+            if self.created_after > self.created_before:
+                raise ValueError("created_after must be before created_before")
+        return self
+
+
 __all__ = [
     "UserBase",
     "UserCreate",
@@ -250,4 +304,7 @@ __all__ = [
     "UserListResponse",
     # Password schemas
     "UserPasswordChange",
+    # List and Search Schemas
+    "UserListResponse",
+    "UserSearchParams",
 ]

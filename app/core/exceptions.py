@@ -177,7 +177,6 @@ class BadRequestException(AppException):
             context=context,
         )
 
-
 # ---- Resource Exceptions ----
 class ResourceNotFound(AppException):
     """Base class for resource not found exceptions."""
@@ -212,7 +211,6 @@ class ResourceAlreadyExists(AppException):
     ) -> None:
         if not detail:
             detail = f"{resource_type} already exists"
-
         context = {"resource_type": resource_type, "identifier": identifier or {}}
 
         super().__init__(
@@ -438,57 +436,3 @@ class RateLimitExceeded(AppException):
             headers=headers,
             context=context,
         )
-
-
-# class AuthenticationError(AppException):
-#     """Custom authentication error with logging"""
-
-#     def __init__(
-#         self,
-#         detail: str = "",
-#         request_id: Optional[str] = None,
-#         user_info: Optional[str] = None,
-#     ):
-#         super().__init__(
-#             status_code=401,
-#             detail=detail,
-#             headers={"WWW-Authenticate": "Bearer"},
-#             error_code=ErrorCode.RATE_LIMIT_EXCEEDED,
-#             context=context,
-
-#         )
-#         # Log security event
-#         logger.warning(
-#             "Authentication failed",
-#             extra={
-#                 "detail": detail,
-#                 "request_id": request_id,
-#                 "user_info": user_info,
-#                 "timestamp": datetime.utcnow().isoformat(),
-#             },
-#         )
-
-
-# class AuthorizationError(AppException):
-#     """Custom authorization error with logging"""
-
-#     def __init__(
-#         self,
-#         detail: str,
-#         user_id: Optional[str] = None,
-#         required_roles: Optional[List[str]] = None,
-#     ):
-#         super().__init__(
-#             status_code=status.HTTP_403_FORBIDDEN,
-#             detail=detail,
-#         )
-#         # Log security event
-#         logger.warning(
-#             "Authorization failed",
-#             extra={
-#                 "detail": detail,
-#                 "user_id": user_id,
-#                 "required_roles": required_roles,
-#                 "timestamp": datetime.utcnow().isoformat(),
-#             },
-#         )

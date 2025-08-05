@@ -3,6 +3,8 @@ import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
+# ** THE FIX IS HERE: Import the 'text' function **
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -39,8 +41,8 @@ class Database:
         logger.info("Initializing database connection...")
         try:
             async with self._engine.begin() as conn:
-                # A simple query to test the connection
-                await conn.run_sync(lambda sync_conn: sync_conn.execute("SELECT 1"))
+                # ** THE FIX IS HERE: Wrap the raw SQL in text() **
+                await conn.run_sync(lambda sync_conn: sync_conn.execute(text("SELECT 1")))
             logger.info("Database connection successful.")
         except (SQLAlchemyError, OSError) as e:
             logger.critical(f"Database connection failed: {e}", exc_info=True)

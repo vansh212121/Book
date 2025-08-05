@@ -126,7 +126,18 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Add a basic Content Security Policy only for HTML responses
         content_type = response.headers.get("content-type", "")
         if "text/html" in content_type:
-            headers["Content-Security-Policy"] = "default-src 'self';"
+            # This is likely the Swagger UI or ReDoc page.
+            # It needs to load scripts and styles from a CDN and use inline styles/scripts.
+            csp = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "img-src 'self' data: https://fastapi.tiangolo.com;"
+            )
+            headers["Content-Security-Policy"] = csp
+        else:
+            # For all other responses (like JSON), a very strict policy is best.
+            headers["Content-Security-Policy"] = "default-src 'self'"
 
         # 3. Apply all the collected headers to the response
         for header, value in headers.items():

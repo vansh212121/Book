@@ -1,3 +1,5 @@
+# In app/services/cache_service.py
+
 import logging
 from typing import Optional
 
@@ -19,16 +21,19 @@ class CacheService:
             key = f"{self.USER_CACHE_PREFIX}{user_id}"
             cached_data = await redis_client.get(key)
             if cached_data:
-                return User.model_validate_json(cached_data)
+                return User.model_validate_json(cached_data.decode("utf-8"))
             return None
-        except Exception:
-            logger.warning(f"Cache lookup failed for user {user_id}.", exc_info=True)
+        except Exception as e:
+            logger.warning(
+                f"Cache lookup failed for user {user_id}: {e}", exc_info=True
+            )
             return None
 
     async def cache_user(self, user: User):
         """Cache user data."""
         try:
             key = f"{self.USER_CACHE_PREFIX}{user.id}"
+            # model_dump_json is the correct way to serialize for caching
             await redis_client.set(key, user.model_dump_json(), ex=self.USER_CACHE_TTL)
         except Exception:
             logger.warning(f"Failed to cache user {user.id}.", exc_info=True)

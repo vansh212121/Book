@@ -1,59 +1,3 @@
-# # main.py or app.py
-# from fastapi import FastAPI
-# # from fastapi.middleware.cors import CORSMiddleware
-# # from fastapi.middleware.trustedhost import TrustedHostMiddleware
-
-# from app.core.exception_handler import register_exception_handlers
-# from app.core.config import settings
-# from app.core.middleware import register_middlewares
-
-# def create_application() -> FastAPI:
-#     """Create and configure the FastAPI application."""
-
-#     app = FastAPI(
-#         title=settings.PROJECT_NAME,
-#         version=settings.VERSION,
-#         description=settings.DESCRIPTION,
-#         docs_url="/api/docs",
-#         redoc_url="/api/redoc",
-#         openapi_url="/api/openapi.json"
-#     )
-#     # Register all middleware
-#     register_middlewares(app)
-#     # Register exception handlers
-#     register_exception_handlers(app)
-
-#     # Add middleware
-#     # app.add_middleware(
-#     #     CORSMiddleware,
-#     #     allow_origins=settings.ALLOWED_ORIGINS,
-#     #     allow_credentials=True,
-#     #     allow_methods=["*"],
-#     #     allow_headers=["*"],
-#     # )
-
-#     # if settings.ALLOWED_HOSTS:
-#     #     app.add_middleware(
-#     #         TrustedHostMiddleware,
-#     #         allowed_hosts=settings.ALLOWED_HOSTS
-#     #     )
-
-#     # Include routers
-#     # app.include_router(auth_router, prefix="/api/auth")
-#     # app.include_router(users_router, prefix="/api/users")
-#     # app.include_router(books_router, prefix="/api/books")
-
-#     return app
-
-
-# app = create_application()
-
-
-# @app.get("/health")
-# async def health_check():
-#     """Health check endpoint."""
-#     return {"status": "healthy"}
-# app/main.py
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
@@ -61,6 +5,9 @@ from app.core.config import settings
 from app.core.exception_handler import register_exception_handlers
 from app.core.middleware import register_middlewares
 from app.db.session import db  # Import the database instance
+
+# Routers
+from app.api.v1.endpoints import user, auth, admin
 
 
 @asynccontextmanager
@@ -84,9 +31,6 @@ def create_application() -> FastAPI:
         title=settings.PROJECT_NAME,
         version=settings.VERSION,
         description=settings.DESCRIPTION,
-        docs_url="/api/docs",
-        redoc_url="/api/redoc",
-        openapi_url="/api/openapi.json",
         lifespan=lifespan,  # Register the lifespan handler
     )
 
@@ -97,7 +41,9 @@ def create_application() -> FastAPI:
     register_exception_handlers(app)
 
     # Include your routers here later
-    # app.include_router(...)
+    app.include_router(auth.router)
+    app.include_router(user.router)
+    app.include_router(admin.router)
 
     return app
 

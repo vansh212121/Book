@@ -25,7 +25,7 @@ from app.core.exceptions import (
 )
 
 # Services - injected, not imported directly
-from app.services import UserService
+from app.services.user_service import UserService 
 from app.services.rate_limit_service import RateLimitService, rate_limit_service
 
 # Setup logging
@@ -66,7 +66,7 @@ async def get_current_user(
         await rate_limit_svc.record_failed_auth_attempt(client_ip)
         raise e
 
-    user = await user_svc.get_user_by_id(db, user_id)
+    user = await user_svc.get_user_for_auth(db=db, user_id=user_id)
     if not user:
         raise ResourceNotFound(detail=f"User with id {user_id} not found.")
 

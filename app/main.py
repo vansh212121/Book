@@ -7,7 +7,7 @@ from app.core.middleware import register_middlewares
 from app.db.session import db  # Import the database instance
 
 # Routers
-from app.api.v1.endpoints import user, auth, admin
+from app.api.v1.endpoints import user, auth, admin, book
 
 
 @asynccontextmanager
@@ -44,6 +44,7 @@ def create_application() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(user.router)
     app.include_router(admin.router)
+    app.include_router(book.router)
 
     return app
 

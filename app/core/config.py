@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     MAIL_SERVER: str
     MAIL_FROM_NAME: str
     MAIL_DEBUG: bool = False
+    MAIL_PORT: int = 587
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

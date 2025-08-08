@@ -6,11 +6,15 @@ from sqlmodel import (
     String,
     DateTime,
 )
+from typing import List, TYPE_CHECKING
 from sqlalchemy import func
 from datetime import datetime
 from enum import Enum as PyEnum
 from typing import Optional
 
+if TYPE_CHECKING:
+    from app.models.book_model import Book
+    from app.models.review_model import Review
 
 # Using PyEnum to avoid conflict with SQLModel's Enum
 class UserRole(str, PyEnum):
@@ -97,10 +101,25 @@ class User(UserBase, table=True):
         ),
         description="Account last updated timestamp",
     )
+    tokens_valid_from_utc: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True)),
+        description="All tokens issued before this timestamp are invalid.",
+    )
     deleted_at: Optional[datetime] = Field(
         default=None,
         sa_column=Column(DateTime(timezone=True)),
         description="Timestamp for soft delete",
+    )
+
+    # Relationships
+    books: List["Book"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"lazy": "selectin", "cascade": "all, delete-orphan"},
+    )
+    reviews: List["Review"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"lazy": "selectin", "cascade": "all, delete-orphan"},
     )
 
     # --- Computed properties (data-focused) ---

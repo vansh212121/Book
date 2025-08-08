@@ -13,6 +13,8 @@ from datetime import datetime, timezone
 from app.crud.user_crud import user_repository
 from app.schemas.user_schema import UserUpdate, UserListResponse, UserCreate
 from app.models.user_model import User, UserRole
+from app.tasks.email_tasks import send_welcome_email_task
+from app.services.auth_service import auth_service
 
 from app.services.cache_service import cache_service
 from app.core.exception_utils import raise_for_status
@@ -101,6 +103,8 @@ class UserService:
         # 3. Delegate creation to the repository
         new_user = await self.user_repository.create(db=db, db_obj=user_to_create)
         self._logger.info(f"New user created: {new_user.email}")
+        await auth_service.send_verification_email(new_user)
+        await self._send_welcome_email(user=new_user)
         return new_user
 
     async def get_user_for_auth(
@@ -111,7 +115,7 @@ class UserService:
         It only performs the cache and database lookup, without authorization.
         """
         # Try cache first
-        cached_user = await cache_service.get_user(user_id)
+        cached_user = await cache_service.get(User, user_id)
         if cached_user:
             user = await db.merge(cached_user)
         else:
@@ -119,7 +123,7 @@ class UserService:
             user = await self.user_repository.get(db=db, obj_id=user_id)
             if user:
                 # Cache the fresh user data for subsequent requests
-                await cache_service.cache_user(user)
+                await cache_service.set(user)
 
         return user
 
@@ -146,7 +150,7 @@ class UserService:
             raise ValidationError("User ID must be a positive integer")
 
         # Try cache first
-        cached_user = await cache_service.get_user(user_id)
+        cached_user = await cache_service.get(User, user_id)
         if cached_user:
             user = await db.merge(cached_user)
         else:
@@ -158,7 +162,7 @@ class UserService:
                 detail=f"User with id {user_id} not found.",
             )
             # Cache the user for future requests
-            await cache_service.cache_user(user)
+            await cache_service.set(user)
 
         # Fine-grained authorization check
         if current_user.is_admin:
@@ -277,7 +281,7 @@ class UserService:
             fields_to_update=update_dict,
         )
 
-        await cache_service.invalidate_user(user_id_to_update)
+        await cache_service.invalidate(User, user_id_to_update)
 
         self._logger.info(
             f"User {user_id_to_update} updated by {current_user.id}",
@@ -340,7 +344,7 @@ class UserService:
         )
 
         # 6. Invalidate cache and potentially revoke tokens
-        await cache_service.invalidate_user(user_id_to_deactivate)
+        await cache_service.invalidate(User, user_id_to_deactivate)
         # TODO: Add token revocation logic here
 
         self._logger.info(
@@ -378,7 +382,7 @@ class UserService:
             db=db, user=user_to_activate, fields_to_update={"is_active": True}
         )
 
-        await cache_service.invalidate_user(user_id_to_activate)
+        await cache_service.invalidate(User, user_id_to_activate)
         self._logger.info(f"User {user_id_to_activate} activated by {current_user.id}")
         return activated_user
 
@@ -410,7 +414,7 @@ class UserService:
             db=db, user=user_to_change, fields_to_update={"role": new_role}
         )
 
-        await cache_service.invalidate_user(user_id_to_change)
+        await cache_service.invalidate(User, user_id_to_change)
         self._logger.info(
             f"User {user_id_to_change} role changed to {new_role.value} by {current_user.id}"
         )
@@ -458,7 +462,7 @@ class UserService:
         await self.user_repository.delete(db=db, obj_id=user_id_to_delete)
 
         # 5. Clean up cache and tokens
-        await cache_service.invalidate_user(user_id_to_delete)
+        await cache_service.invalidate(User, user_id_to_delete)
         # TODO: Add token revocation logic here
 
         self._logger.warning(
@@ -515,6 +519,48 @@ class UserService:
                     "Cannot delete the last active administrator account"
                 )
 
+    # --- Private Helper Methods for Email Sending (Simulated) ---
+    async def _send_welcome_email(self, user: User):
+        """
+        Dispatches a Celery task to send a password reset email.
+        """
+        send_welcome_email_task.delay(email_to=user.email, first_name=user.first_name)
+
+        # We can still log that the task was dispatched.
+        logger.info(f"Dispatched a welcome email task for {user.email}")
+
 
 # Singleton instance for the rest of the application to use
 user_services = UserService()
+
+
+
+# async def get_reviews_by_user(
+#         self,
+#         db: AsyncSession,
+#         user_id: int,
+#         current_user: Optional[User] = None
+#     ) -> List[Review]:
+#         """
+#         Get all reviews written by a specific user.
+        
+#         Args:
+#             db: Database session
+#             user_id: User ID
+#             current_user: Optional current user for authorization
+            
+#         Returns:
+#             List of reviews
+#         """
+#         user = await self.user_repository.get_with_reviews(user_id, db)
+        
+#         # Check if reviews are public or user has access
+#         if current_user:
+#             if current_user.id != user.id and current_user.role != UserRole.ADMIN:
+#                 # Filter out private reviews if any
+#                 return [r for r in user.reviews if getattr(r, 'is_public', True)]
+#         else:
+#             # Anonymous users only see public reviews
+#             return [r for r in user.reviews if getattr(r, 'is_public', True)]
+        
+#         return user.reviews

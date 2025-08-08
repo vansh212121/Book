@@ -6,7 +6,7 @@ This module focuses purely on dependency injection, delegating business logic to
 
 import logging
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import Depends, HTTPException, status, Request, Query
 from fastapi.security import OAuth2PasswordBearer
@@ -22,6 +22,7 @@ from app.core.exceptions import (
     ResourceNotFound,
     InactiveUser,
     UnverifiedUser,
+    TokenRevoked
 )
 
 # Services - injected, not imported directly
@@ -69,6 +70,13 @@ async def get_current_user(
     user = await user_svc.get_user_for_auth(db=db, user_id=user_id)
     if not user:
         raise ResourceNotFound(detail=f"User with id {user_id} not found.")
+    
+    if user.tokens_valid_from_utc:
+        # ...get the 'issued at' time from the token.
+        token_issued_at = datetime.fromtimestamp(payload.get("iat"), tz=timezone.utc)
+        # If the token was issued BEFORE the last revocation event, it's invalid.
+        if token_issued_at < user.tokens_valid_from_utc:
+            raise TokenRevoked("Token has been revoked by a security event.")
 
     await rate_limit_svc.clear_failed_auth_attempts(client_ip)
     request.state.user = user

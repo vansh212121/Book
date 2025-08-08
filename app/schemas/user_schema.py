@@ -14,6 +14,7 @@ from pydantic import (
 from app.models.user_model import UserRole
 from app.core.exceptions import ValidationError
 
+
 class UserBase(BaseModel):
     """Base schema for user data."""
 
@@ -99,7 +100,6 @@ class UserUpdate(BaseModel):
         pattern=r"^[a-zA-Z0-9_-]+$",
         description="Unique username",
     )
-    email: Optional[EmailStr] = Field(None, description="New email address")
 
     @field_validator("username")
     @classmethod
@@ -163,23 +163,6 @@ class UserPublicResponse(BaseModel):
     last_name: str = Field(..., description="Last name")
     is_verified: bool = Field(..., description="Verification status")
     created_at: datetime = Field(..., description="Member since")
-
-    # class UserDetailedResponse(UserResponse):
-    """Detailed user response with additional information."""
-
-
-#     verified_at: Optional[datetime] = Field(None, description="Verification timestamp")
-#     book_count: int = Field(default=0, description="Number of books created")
-#     review_count: int = Field(default=0, description="Number of reviews written")
-
-#     @classmethod
-#     def from_orm_with_counts(cls, user: Any) -> "UserDetailedResponse":
-#         """Create response with computed counts."""
-#         return cls(
-#             **user.__dict__,
-#             book_count=len(user.books) if hasattr(user, "books") else 0,
-#             review_count=len(user.reviews) if hasattr(user, "reviews") else 0
-#         )
 
 
 # --- List & Search Schemas ---
@@ -305,6 +288,5 @@ __all__ = [
     # Password schemas
     "UserPasswordChange",
     # List and Search Schemas
-    "UserListResponse",
     "UserSearchParams",
 ]

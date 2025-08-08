@@ -14,7 +14,6 @@ argon2-cffi
 passlib[bcrypt]
 redis
 fastapi-mail 
-itsdangerous
 celery
 asgiref
 eventlet

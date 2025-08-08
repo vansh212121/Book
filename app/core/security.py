@@ -30,6 +30,7 @@ class TokenType(str, Enum):
     REFRESH = "refresh"
     EMAIL_VERIFICATION = "email_verification"
     PASSWORD_RESET = "password_reset"
+    EMAIL_CHANGE = "email_change"
 
 
 class SecurityConfig:
@@ -178,7 +179,11 @@ class TokenManager:
         if not self.config.ENABLE_TOKEN_BLACKLIST:
             return False
         try:
-            payload = self.decode_token_unsafe(token)
+            payload = jwt.decode(
+                token,
+                self.config.JWT_SECRET_KEY,
+                options={"verify_signature": False, "verify_exp": False,  "verify_aud": False,},
+            )
             jti = payload.get("jti")
             exp = payload.get("exp")
             if not jti or not exp:

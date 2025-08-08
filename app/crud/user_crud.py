@@ -276,3 +276,20 @@ class UserRepository(BaseRepository[User]):
 
 
 user_repository = UserRepository()
+
+
+
+
+
+    # async def get_with_reviews(self, db: AsyncSession, *, obj_id: int) -> Optional[User]:
+    #     """
+    #     Retrieves a user and eagerly loads their reviews relationship.
+    #     This is a performance optimization to prevent N+1 query issues.
+    #     """
+    #     statement = (
+    #         select(self.model)
+    #         .where(self.model.id == obj_id)
+    #         .options(selectinload(self.model.reviews)) # <-- This is the eager loading instruction
+    #     )
+    #     result = await db.execute(statement)
+    #     return result.scalar_one_or_none()

@@ -6,8 +6,9 @@ from app.core.exception_handler import register_exception_handlers
 from app.core.middleware import register_middlewares
 from app.db.session import db  # Import the database instance
 
+from app.db import base
 # Routers
-from app.api.v1.endpoints import user, auth, admin, book
+from app.api.v1.endpoints import user, auth, admin, book, review
 
 
 @asynccontextmanager
@@ -45,6 +46,7 @@ def create_application() -> FastAPI:
     app.include_router(user.router)
     app.include_router(admin.router)
     app.include_router(book.router)
+    app.include_router(review.router)
 
     return app
 

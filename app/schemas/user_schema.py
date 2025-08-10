@@ -165,27 +165,6 @@ class UserPublicResponse(BaseModel):
     created_at: datetime = Field(..., description="Member since")
 
 
-# --- List & Search Schemas ---
-class UserListResponse(BaseModel):
-    """Response for paginated user list."""
-
-    items: List[UserResponse] = Field(..., description="List of users")
-    total: int = Field(..., ge=0, description="Total number of users")
-    page: int = Field(..., ge=1, description="Current page number")
-    pages: int = Field(..., ge=0, description="Total number of pages")
-    size: int = Field(..., ge=1, le=100, description="Number of items per page")
-
-    @property
-    def has_next(self) -> bool:
-        """Check if there's a next page."""
-        return self.page < self.pages
-
-    @property
-    def has_previous(self) -> bool:
-        """Check if there's a previous page."""
-        return self.page > 1
-
-
 # --- Password Management Schemas ---
 class UserPasswordChange(BaseModel):
     """Schema for changing password (authenticated users)."""

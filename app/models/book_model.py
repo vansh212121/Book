@@ -96,16 +96,17 @@ class Book(BookBase, table=True):
 
     # Relationships
     user: Optional["User"] = Relationship(
-        back_populates="books", sa_relationship_kwargs={"lazy": "joined"}
+        back_populates="books",
+        # sa_relationship_kwargs={"lazy": "joined"}
     )
     tags: List["Tag"] = Relationship(
         back_populates="books",
         link_model=BookTag,
-        sa_relationship_kwargs={"lazy": "selectin"},
+        # sa_relationship_kwargs={"lazy": "selectin"},
     )
     reviews: List["Review"] = Relationship(
         back_populates="book",
-        sa_relationship_kwargs={"lazy": "selectin", "cascade": "all, delete-orphan"},
+        # sa_relationship_kwargs={"lazy": "selectin", "cascade": "all, delete-orphan"},
     )
 
     def __repr__(self) -> str:

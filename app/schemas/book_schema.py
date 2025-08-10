@@ -5,9 +5,9 @@ Book schemas for request/response models.
 This module defines Pydantic schemas for book-related operations,
 including creation, updates, and various response formats.
 """
-
+from __future__ import annotations
 from datetime import date, datetime
-from typing import Optional, List, Dict, Any, Annotated
+from typing import Optional, List, Dict, Any, Annotated, TYPE_CHECKING
 from enum import Enum
 
 from pydantic import (
@@ -22,7 +22,8 @@ from pydantic.types import conint
 
 from app.schemas.tag_schema import TagResponse
 from app.schemas.user_schema import UserBasicResponse
-from app.schemas.review_schema import ReviewResponse
+if TYPE_CHECKING:
+    from app.schemas.review_schema import ReviewResponse
 
 
 class BookLanguage(str, Enum):
@@ -109,35 +110,36 @@ class BookBase(BaseModel):
 class BookCreate(BookBase):
     """Schema for creating a new book."""
 
-    tags: Optional[List[str]] = Field(
-        default=None,
-        min_items=0,
-        max_items=10,
-        description="List of tag names to associate with the book",
-        examples=[["fiction", "classic", "american-literature"]],
-    )
+    # tags: Optional[List[str]] = Field(
+    #     default=None,
+    #     min_items=0,
+    #     max_items=10,
+    #     description="List of tag names to associate with the book",
+    #     examples=[["fiction", "classic", "american-literature"]],
+    # )
 
-    @field_validator("tags")
-    @classmethod
-    def validate_tags(cls, v: Optional[List[str]]) -> Optional[List[str]]:
-        """Validate and normalize tags."""
-        if v is None:
-            return v
+    # @field_validator("tags")
+    # @classmethod
+    # def validate_tags(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+    #     """Validate and normalize tags."""
+    #     if v is None:
+    #         return v
 
-        # Remove duplicates and normalize
-        normalized_tags = []
-        seen = set()
+    #     # Remove duplicates and normalize
+    #     normalized_tags = []
+    #     seen = set()
 
-        for tag in v:
-            normalized = tag.strip().lower()
-            if normalized and normalized not in seen:
-                seen.add(normalized)
-                normalized_tags.append(normalized)
+    #     for tag in v:
+    #         normalized = tag.strip().lower()
+    #         if normalized and normalized not in seen:
+    #             seen.add(normalized)
+    #             normalized_tags.append(normalized)
 
-        return normalized_tags if normalized_tags else None
+    #     return normalized_tags if normalized_tags else None
+    pass
 
 
-class BookUpdate(BaseModel):
+class BookUpdate(BookBase):
     title: Optional[str] = Field(
         min_length=1,
         max_length=255,
@@ -176,12 +178,12 @@ class BookUpdate(BaseModel):
     published_date: Optional[date] = Field(
         ..., description="The publication date of the book", examples=["1925-04-10"]
     )
-    tags: Optional[List[str]] = Field(
-        None,
-        min_items=0,
-        max_items=10,
-        description="List of tag names to associate with the book",
-    )
+    # tags: Optional[List[str]] = Field(
+    #     None,
+    #     min_items=0,
+    #     max_items=10,
+    #     description="List of tag names to associate with the book",
+    # )
 
     @model_validator(mode="before")
     @classmethod
@@ -191,14 +193,14 @@ class BookUpdate(BaseModel):
             raise ValueError("At least one field must be provided for update")
         return values
 
-    _strip_whitespace = field_validator("title", "author", "publisher")(
-        BookBase.strip_whitespace
-    )
-    _validate_language = field_validator("language")(BookBase.validate_language)
-    _validate_published_date = field_validator("published_date")(
-        BookBase.validate_published_date
-    )
-    _validate_tags = field_validator("tags")(BookCreate.validate_tags)
+    # _strip_whitespace = field_validator("title", "author", "publisher")(
+    #     BookBase.strip_whitespace
+    # )
+    # _validate_language = field_validator("language")(BookBase.validate_language)
+    # _validate_published_date = field_validator("published_date")(
+    #     BookBase.validate_published_date
+    # )
+    # _validate_tags = field_validator("tags")(BookCreate.validate_tags)
 
 
 class BookResponse(BookBase):
@@ -241,21 +243,31 @@ class BookResponseDetailed(BookResponseWithUser):
 class BookListResponse(BaseModel):
     """Response schema for paginated book list."""
 
-    items: List[BookResponseWithTags] = Field(..., description="List of books")
+    items: List[BookResponse] = Field(..., description="List of books")
     total: int = Field(..., ge=0, description="Total number of books")
     page: int = Field(..., ge=1, description="Current page number")
     pages: int = Field(..., ge=0, description="Total number of pages")
     size: int = Field(..., ge=1, le=100, description="Number of items per page")
 
+    @property
+    def has_next(self) -> bool:
+        """Check if there's a next page."""
+        return self.page < self.pages
+
+    @property
+    def has_previous(self) -> bool:
+        """Check if there's a previous page."""
+        return self.page > 1
+
 
 class BookSearchParams(BaseModel):
     """Parameters for searching books."""
 
-    query: Optional[str] = Field(
+    search: Optional[str] = Field(
         None,
         min_length=1,
         max_length=100,
-        description="Search query for title or author",
+        description="Search books with title or author",
     )
     author: Optional[str] = Field(
         None, min_length=1, max_length=255, description="Filter by author"
@@ -263,9 +275,9 @@ class BookSearchParams(BaseModel):
     language: Optional[str] = Field(
         None, min_length=2, max_length=50, description="Filter by language"
     )
-    tags: Optional[List[str]] = Field(
-        None, min_items=1, max_items=10, description="Filter by tags"
-    )
+    # tags: Optional[List[str]] = Field(
+    #     None, min_items=1, max_items=10, description="Filter by tags"
+    # )
     published_after: Optional[date] = Field(
         None, description="Filter books published after this date"
     )

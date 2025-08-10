@@ -19,12 +19,17 @@ from app.schemas.user_schema import (
     UserResponse,
     UserUpdate,
 )
-from app.schemas.book_schema import BookResponseDetailed, BookSearchParams
+from app.schemas.book_schema import BookSearchParams, BookListResponse
 from app.schemas.auth_schema import PasswordChange
+from app.schemas.review_schema import ReviewListResponse
+
 from app.models.user_model import User
+
 from app.services.user_service import user_services
 from app.services.book_service import book_service
+from app.services.book_service import book_service
 from app.services.auth_service import auth_service
+from app.services.review_service import review_service
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +130,8 @@ async def change_password(
 
 @router.get(
     "/me/books",
-    response_model=List[BookResponseDetailed],
+    # response_model=List[BookResponseDetailed],
+    response_model=BookListResponse,
     summary="Get current user's books",
     description="Retrieve books owned by the authenticated user",
     dependencies=[Depends(rate_limit_api)],
@@ -144,6 +150,34 @@ async def get_my_books(
     """
 
     return await book_service.get_user_books(
+        db=db,
+        user_id=current_user.id,
+        skip=pagination.skip,
+        limit=pagination.limit,
+        filters=search_params.model_dump(exclude_none=True),
+        order_by=order_by,
+        order_desc=order_desc,
+    )
+
+
+@router.get(
+    "/me/reviews",
+    response_model=ReviewListResponse,
+    summary="Get current user's reviews",
+    description="Retrieve review's owned by the authenticated user",
+    dependencies=[Depends(rate_limit_api)],
+)
+async def get_my_reviews(
+    db: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_verified_user),
+    pagination: PaginationParams = Depends(get_pagination_params),
+    search_params: BookSearchParams = Depends(BookSearchParams),
+    order_by: str = Query("created_at", description="Field to order by"),
+    order_desc: bool = Query(True, description="Order descending"),
+):
+    """Get reviews owned by the current authenticated user."""
+
+    return await review_service.get_user_reviews(
         db=db,
         user_id=current_user.id,
         skip=pagination.skip,

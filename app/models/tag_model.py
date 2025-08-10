@@ -112,11 +112,11 @@ class Tag(TagBase, table=True):
     books: List["Book"] = Relationship(
         back_populates="tags",
         link_model=BookTag,
-        sa_relationship_kwargs={"lazy": "dynamic"},
+        # sa_relationship_kwargs={"lazy": "dynamic"},
     )
 
     created_by_user: Optional["User"] = Relationship(
-        sa_relationship_kwargs={"lazy": "joined", "foreign_keys": "[Tag.created_by]"}
+        # sa_relationship_kwargs={"lazy": "joined", "foreign_keys": "[Tag.created_by]"}
     )
 
     # Computed properties

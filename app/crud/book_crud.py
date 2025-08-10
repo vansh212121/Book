@@ -95,8 +95,8 @@ class BookRepository(BaseRepository[Book]):
         self, db: AsyncSession, *, obj_ids: List[int]
     ) -> Optional[Book]:
         """Retrieves multiple books by their IDs."""
-        statement = select(self.model).where(self.model.in_(obj_ids))
-        result = await self.session.execute(statement)
+        statement = select(self.model).where(self.model.id.in_(obj_ids))
+        result = await db.execute(statement)
         books = result.scalars().all()
 
         logger.info(f"Retrieved {len(books)} books out of {len(obj_ids)} requested")
@@ -156,15 +156,11 @@ class BookRepository(BaseRepository[Book]):
     ) -> Tuple[List[Book], int]:
         """Retrieve books with filtering, search, and pagination."""
 
-        """Get multiple users with filtering and pagination."""
         query = select(self.model)
-
-        if filters:
-            query = self._apply_filters(query, filters)
 
         # Apply filters
         if filters:
-            query = self._apply_filters(query, filters)
+            query = self._apply_filters(query, filters=filters)
 
         # Count total
         count_query = select(func.count()).select_from(query.subquery())
@@ -214,7 +210,7 @@ class BookRepository(BaseRepository[Book]):
         await db.refresh(book)
 
         self._logger.info(
-            f"User fields updated for {book.id}: {list(fields_to_update.keys())}"
+            f"Book fields updated for {book.id}: {list(fields_to_update.keys())}"
         )
         return book
 

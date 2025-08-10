@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, List
 from datetime import datetime
 
 from sqlmodel import (
@@ -16,6 +16,7 @@ from sqlalchemy import Index, UniqueConstraint, CheckConstraint, func
 if TYPE_CHECKING:
     from app.models.user_model import User
     from app.models.book_model import Book
+    from app.models.review_vote_model import ReviewVote
 
 
 class ReviewBase(SQLModel):
@@ -45,6 +46,8 @@ class ReviewBase(SQLModel):
     is_verified_purchase: bool = Field(
         default=False, description="Whether reviewer purchased the book"
     )
+
+
 
 
 class Review(ReviewBase, table=True):
@@ -119,11 +122,17 @@ class Review(ReviewBase, table=True):
     # Relationships
     user: Optional["User"] = Relationship(
         back_populates="reviews",
-        sa_relationship_kwargs={"lazy": "joined", "foreign_keys": "[Review.user_id]"},
+        # sa_relationship_kwargs={"lazy": "joined", "foreign_keys": "[Review.user_id]"},
     )
     book: Optional["Book"] = Relationship(
-        back_populates="reviews", sa_relationship_kwargs={"lazy": "joined"}
+        # back_populates="reviews", sa_relationship_kwargs={"lazy": "joined"}
+    )
+    votes: List["ReviewVote"] = Relationship(
+        back_populates="review",
+        # sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
 
     def __repr__(self) -> str:
         return f"<Review(id={self.id}, user_id={self.user_id}, book_id={self.book_id}, rating={self.rating})>"
+
+

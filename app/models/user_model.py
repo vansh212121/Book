@@ -13,8 +13,9 @@ from enum import Enum as PyEnum
 from typing import Optional
 
 if TYPE_CHECKING:
-    from app.models.book_model import Book
     from app.models.review_model import Review
+    from app.models.book_model import Book
+    from app.models.review_vote_model import ReviewVote
 
 # Using PyEnum to avoid conflict with SQLModel's Enum
 class UserRole(str, PyEnum):
@@ -115,17 +116,21 @@ class User(UserBase, table=True):
     # Relationships
     books: List["Book"] = Relationship(
         back_populates="user",
-        sa_relationship_kwargs={"lazy": "selectin", "cascade": "all, delete-orphan"},
+        # sa_relationship_kwargs={"lazy": "selectin", "cascade": "all, delete-orphan"},
     )
     reviews: List["Review"] = Relationship(
         back_populates="user",
-        sa_relationship_kwargs={"lazy": "selectin", "cascade": "all, delete-orphan"},
+        # sa_relationship_kwargs={"lazy": "selectin", "cascade": "all, delete-orphan"},
+    )
+    review_votes: List["ReviewVote"] = Relationship(
+        back_populates="user",
+        # sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
 
     # --- Computed properties (data-focused) ---
     @property
     def is_admin(self) -> bool:
-        return self.role == UserRole.ADMIN
+        return self.role == UserRole.ADMIN  
 
     @property
     def is_moderator(self) -> bool:

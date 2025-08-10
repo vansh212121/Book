@@ -1,4 +1,3 @@
-from pydantic import BaseModel
 
 # app/schemas/review_schema.py
 """
@@ -7,14 +6,15 @@ Review schemas for request/response models.
 This module defines Pydantic schemas for review-related operations,
 including creation, updates, and various response formats.
 """
-
+from __future__ import annotations
 from typing import Optional, List, Dict, Any, Annotated, TYPE_CHECKING
 from datetime import datetime, date
-from enum import Enum
-# from app.schemas.user_schema import UserPublicResponse
 from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
-# if TYPE_CHECKING:
-#     from app.schemas.book_schema import BookResponse
+from app.core.exceptions import ValidationError
+
+if TYPE_CHECKING:
+    from app.schemas.user_schema import UserPublicResponse
+    from app.schemas.book_schema import BookResponse
 
 
 
@@ -66,7 +66,7 @@ class ReviewBase(BaseModel):
         # Check minimum word count (not just characters)
         word_count = len(cleaned.split())
         if word_count < 5:
-            raise ValueError("Review must contain at least 5 words")
+            raise ValidationError("Review must contain at least 5 words")
 
         return cleaned
 
@@ -74,21 +74,20 @@ class ReviewBase(BaseModel):
 # ------CRUD SCHEMAS------
 class ReviewCreate(ReviewBase):
     """Schema for creating a review."""
-
-    book_id: int = Field(..., gt=0, description="ID of the book being reviewed")
+    # book_id: int
 
     @model_validator(mode="after")
     def validate_review(self) -> "ReviewCreate":
         """Additional validation for review creation."""
         # Ensure title is provided for 5-star or 1-star reviews
         if self.rating in [1, 5] and not self.title:
-            raise ValueError(
+            raise ValidationError(
                 f"Please provide a title for your {self.rating}-star review"
             )
         return self
 
 
-class ReviewUpdate(BaseModel):
+class ReviewUpdate(ReviewBase):
     """Schema for updating a review."""
 
     model_config = ConfigDict(validate_assignment=True)
@@ -118,7 +117,7 @@ class ReviewUpdate(BaseModel):
     def validate_at_least_one_field(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """Ensure at least one field is provided for update."""
         if not any(v is not None for v in values.values()):
-            raise ValueError("At least one field must be provided for update")
+            raise ValidationError("At least one field must be provided for update")
         return values
 
 
@@ -138,18 +137,23 @@ class ReviewResponse(ReviewBase):
     updated_at: datetime = Field(..., description="Last update timestamp")
 
 
-# class ReviewDetailedResponse(ReviewResponse):
-#     """Detailed review response with all information."""
+class ReviewDetailedResponse(ReviewResponse):
+    """Detailed review response with all information."""
 
-#     user: UserPublicResponse = Field(..., description="Reviewer information")
-#     book: BookResponse = Field(..., description="Book information")
+    user: UserPublicResponse = Field(..., description="Reviewer information")
+    book: BookResponse = Field(..., description="Book information")
 
-#     @property
-#     def display_name(self) -> str:
-#         """Get display name for reviewer."""
-#         return self.user.username or self.user.full_name
+    @property
+    def display_name(self) -> str:
+        """Get display name for reviewer."""
+        return self.user.username or self.user.full_name
 
+# Import the real classes at runtime *after* defining the model
+from app.schemas.user_schema import UserPublicResponse
+from app.schemas.book_schema import BookResponse
 
+# Rebuild so Pydantic resolves forward references
+ReviewDetailedResponse.model_rebuild()
 # ----VOTING SCHEMA-------
 class ReviewVote(BaseModel):
     """Schema for voting on review helpfulness."""
@@ -177,22 +181,22 @@ class ReviewVoteResponse(BaseModel):
 # -----LIST AND SEARCH PARAMS------
 
 
-# class ReviewListResponse(BaseModel):
-#     """Response for paginated review list."""
+class ReviewListResponse(BaseModel):
+    """Response for paginated review list."""
 
-#     items: List[ReviewDetailedResponse] = Field(..., description="List of reviews")
-#     total: int = Field(..., ge=0, description="Total number of reviews")
-#     page: int = Field(..., ge=1, description="Current page number")
-#     pages: int = Field(..., ge=0, description="Total number of pages")
-#     size: int = Field(..., ge=1, le=100, description="Number of items per page")
+    items: List[ReviewDetailedResponse] = Field(..., description="List of reviews")
+    total: int = Field(..., ge=0, description="Total number of reviews")
+    page: int = Field(..., ge=1, description="Current page number")
+    pages: int = Field(..., ge=0, description="Total number of pages")
+    size: int = Field(..., ge=1, le=100, description="Number of items per page")
 
-#     # Aggregate data
-#     average_rating: Optional[float] = Field(
-#         None, ge=1.0, le=5.0, description="Average rating across all reviews"
-#     )
-#     rating_distribution: Dict[int, int] = Field(
-#         default_factory=dict, description="Count of reviews per rating"
-#     )
+    # Aggregate data
+    average_rating: Optional[float] = Field(
+        None, ge=1.0, le=5.0, description="Average rating across all reviews"
+    )
+    rating_distribution: Dict[int, int] = Field(
+        default_factory=dict, description="Count of reviews per rating"
+    )
 
 
 class ReviewSearchParams(BaseModel):
@@ -240,7 +244,7 @@ class ReviewSearchParams(BaseModel):
         """Ensure rating range is valid."""
         if self.min_rating and self.max_rating:
             if self.min_rating > self.max_rating:
-                raise ValueError("min_rating must be less than or equal to max_rating")
+                raise ValidationError("min_rating must be less than or equal to max_rating")
         return self
 
     @model_validator(mode="after")
@@ -248,7 +252,7 @@ class ReviewSearchParams(BaseModel):
         """Ensure date range is valid."""
         if self.created_after and self.created_before:
             if self.created_after > self.created_before:
-                raise ValueError("created_after must be before created_before")
+                raise ValidationError("created_after must be before created_before")
         return self
 
 

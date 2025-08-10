@@ -78,7 +78,7 @@ class BookService:
             )
 
             await cache_service.set(book)
-
+            
         return book
 
     async def get_by_ids(self, db: AsyncSession, *, book_ids: List[int]) -> List[Book]:
@@ -141,7 +141,7 @@ class BookService:
         filters: Optional[Dict[str, Any]] = None,
         order_by: str = "created_at",
         order_desc: bool = True,
-    ):
+    ) -> BookListResponse:
         """Get all books with optional filtering and pagination."""
 
         # Input validation
@@ -192,10 +192,9 @@ class BookService:
         book_dict["user_id"] = current_user.id
 
         book_to_create = Book(**book_dict)
-
         #  3. Delegate creation to the repository
         new_book = await self.book_repository.create(db=db, obj_in=book_to_create)
-        self._logger.info(f"New user created: {new_book.email}")
+        self._logger.info(f"New book created: {new_book.title}")
 
         return new_book
 
@@ -306,7 +305,7 @@ class BookService:
 
     # Helper Functions
     async def _validate_book_update(
-        self, db: AsyncSession, book_data: BookUpdate, existing_book: User
+        self, db: AsyncSession, book_data: BookUpdate, existing_book: Book
     ) -> None:
         """Validates user update data for potential conflicts."""
 
@@ -315,7 +314,7 @@ class BookService:
                 raise ResourceAlreadyExists("Title is already in use")
 
     async def _validate_book_deletion(
-        self, book_to_delete: User, current_user: User
+        self, book_to_delete: Book, current_user: User
     ) -> None:
 
         # Prevent self-deletion
@@ -326,7 +325,6 @@ class BookService:
 book_service = BookService()
 
 # PROCESS TAGS COME HERE LATER ON
-
 
 #     async def _process_tags(self, tag_names: Optional[List[str]]) -> List[Tag]:
 #         """

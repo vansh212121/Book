@@ -103,7 +103,7 @@ Follow these steps to get the project running locally.
 
 1.  **Clone the Repository:**
     ```bash
-    git clone <your-repository-url>
+    git clone https://github.com/vansh212121/Bookly.git
     cd bookly
     ```
 

@@ -8,10 +8,8 @@ including creation, updates, and various response formats.
 
 from typing import Optional, List, Dict, Any, Annotated
 from datetime import datetime
-from enum import Enum
 
 from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
-from pydantic.types import constr
 
 from app.models.tag_model import TagCategory
 
@@ -86,6 +84,10 @@ class TagUpdate(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True)
 
+    name: Optional[Annotated[str, Field(max_length=50, description="Updated name")]] = (
+        None
+    )
+
     display_name: Optional[
         Annotated[str, Field(max_length=50, description="Updated display name")]
     ] = None
@@ -117,6 +119,7 @@ class TagResponse(TagBase):
     is_official: bool = Field(..., description="Official tag flag")
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
+    created_by: Optional[int] = Field(None, description="ID of user who created tag")
 
 
 class TagDetailedResponse(TagResponse):
@@ -139,8 +142,6 @@ class TagDetailedResponse(TagResponse):
 
 
 # ===== List and Search Params Schemas ======
-
-
 class TagListResponse(BaseModel):
     """Response for paginated tag list."""
 
@@ -154,7 +155,7 @@ class TagListResponse(BaseModel):
 class TagSearchParams(BaseModel):
     """Parameters for searching tags."""
 
-    query: Optional[str] = Field(
+    search: Optional[str] = Field(
         None, min_length=1, max_length=50, description="Search query for tag names"
     )
     category: Optional[TagCategory] = Field(None, description="Filter by category")
@@ -163,8 +164,6 @@ class TagSearchParams(BaseModel):
 
 
 # ------ Suggestions ------
-
-
 class TagSuggestion(BaseModel):
     """Tag suggestion for a book."""
 
@@ -205,6 +204,14 @@ class TagSuggestionRequest(BaseModel):
         return values
 
 
+class RelatedTagResponse(TagResponse):
+    """A tag response that includes the co-occurrence count."""
+
+    co_occurrence: int = Field(
+        ..., description="How many books this tag shares with the source tag."
+    )
+
+
 # Export all schemas
 __all__ = [
     # Base schemas
@@ -220,4 +227,5 @@ __all__ = [
     # Suggestions
     "TagSuggestion",
     "TagSuggestionRequest",
+    "RelatedTagResponse",
 ]

@@ -16,11 +16,9 @@ from sqlmodel import (
     Relationship,
     Column,
     String,
-    Integer,
     DateTime,
-    Boolean,
 )
-from sqlalchemy import Index, UniqueConstraint, func, CheckConstraint
+from sqlalchemy import Index, UniqueConstraint, func
 
 from app.models.book_tag_model import BookTag
 
@@ -91,7 +89,7 @@ class Tag(TagBase, table=True):
         sa_column=Column(
             DateTime(timezone=True), server_default=func.now(), nullable=False
         ),
-        description="Book creation timestamp",
+        description="Tag creation timestamp",
     )
     updated_at: datetime = Field(
         sa_column=Column(
@@ -100,7 +98,7 @@ class Tag(TagBase, table=True):
             server_onupdate=func.now(),  # Correctly updates on every change
             nullable=False,
         ),
-        description="Book last updated timestamp",
+        description="Tag last updated timestamp",
     )
 
     # Creator tracking

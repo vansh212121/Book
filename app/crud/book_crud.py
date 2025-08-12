@@ -3,12 +3,14 @@ from typing import Optional, List, Dict, Any, TypeVar, Generic, Tuple
 from abc import ABC, abstractmethod
 
 from app.models.book_model import Book
-from app.models.user_model import User
+from app.models.tag_model import Tag
+from app.models.book_tag_model import BookTag
 
 from datetime import datetime, timezone
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select, func, and_, or_, delete
+from sqlalchemy.orm import selectinload
 
 from app.core.exception_utils import handle_exceptions
 from app.core.exceptions import InternalServerError
@@ -175,6 +177,85 @@ class BookRepository(BaseRepository[Book]):
         books = result.scalars().all()
 
         return books, total
+
+    @handle_exceptions(
+        default_exception=InternalServerError,
+        message="An unexpected database error occurred.",
+    )
+    async def get_details(self, db: AsyncSession, *, obj_id: int) -> Optional[Book]:
+        """
+        Retrieves a book and eagerly loads all its key relationships
+        (user, tags, reviews) for a detailed view.
+        """
+        statement = (
+            select(self.model)
+            .where(self.model.id == obj_id)
+            .options(
+                selectinload(self.model.user),
+                selectinload(self.model.tags),
+                selectinload(self.model.reviews),
+            )
+        )
+        result = await db.execute(statement)
+        return result.scalar_one_or_none()
+
+    @handle_exceptions(
+        default_exception=InternalServerError,
+        message="An unexpected database error occurred.",
+    )
+    async def get_all_by_tag(
+        self,
+        db: AsyncSession,
+        *,
+        tag_id: int,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> Tuple[List[Book], int]:
+        """
+        Gets a paginated list of all books associated with a specific tag.
+        """
+        # 1. First, create a query to count the total number of books for the tag.
+        #    This is a JOIN from Book -> BookTag where the tag_id matches.
+        count_query = (
+            select(func.count(self.model.id))
+            .join(BookTag)
+            .where(BookTag.tag_id == tag_id)
+        )
+        total = (await db.execute(count_query)).scalar_one()
+
+        # 2. Now, create the main query to fetch the paginated book data.
+        #    We also eager-load the user and tags for an efficient response.
+        statement = (
+            select(self.model)
+            .join(BookTag)
+            .where(BookTag.tag_id == tag_id)
+            .order_by(self.model.title)  # A sensible default order
+            .offset(skip)
+            .limit(limit)
+            .options(selectinload(self.model.user), selectinload(self.model.tags))
+        )
+
+        result = await db.execute(statement)
+        books = result.scalars().all()
+
+        return books, total
+
+    @handle_exceptions(
+        default_exception=InternalServerError,
+        message="An unexpected database error occurred.",
+    )
+    async def get_with_tags(self, db: AsyncSession, *, obj_id: int) -> Optional[Book]:
+        """
+        Retrieves a book and eagerly loads its 'tags' relationship
+        to prepare for a cascade delete operation.
+        """
+        statement = (
+            select(self.model)
+            .where(self.model.id == obj_id)
+            .options(selectinload(self.model.tags))
+        )
+        result = await db.execute(statement)
+        return result.scalar_one_or_none()
 
     @handle_exceptions(
         default_exception=InternalServerError,

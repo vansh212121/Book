@@ -1,6 +1,6 @@
 import logging
 
-from typing import Dict, List
+from typing import Dict
 from fastapi import APIRouter, Depends, status, Query
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -21,7 +21,8 @@ from app.schemas.user_schema import (
 )
 from app.schemas.book_schema import BookSearchParams, BookListResponse
 from app.schemas.auth_schema import PasswordChange
-from app.schemas.review_schema import ReviewListResponse
+from app.schemas.review_schema import ReviewListResponse, ReviewSearchParams
+from app.schemas.tag_schema import TagListResponse, TagSearchParams
 
 from app.models.user_model import User
 
@@ -30,6 +31,7 @@ from app.services.book_service import book_service
 from app.services.book_service import book_service
 from app.services.auth_service import auth_service
 from app.services.review_service import review_service
+from app.services.tag_service import tag_service
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +48,7 @@ router = APIRouter(
     response_model=UserResponse,
     summary="Get current user profile",
     description="Get profile information for the authenticated user",
-    dependencies=[Depends(rate_limit_heavy), Depends(require_user)],
+    dependencies=[Depends(rate_limit_api), Depends(require_user)],
 )
 async def get_my_profile(
     db: AsyncSession = Depends(get_session),
@@ -130,7 +132,6 @@ async def change_password(
 
 @router.get(
     "/me/books",
-    # response_model=List[BookResponseDetailed],
     response_model=BookListResponse,
     summary="Get current user's books",
     description="Retrieve books owned by the authenticated user",
@@ -171,13 +172,41 @@ async def get_my_reviews(
     db: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_verified_user),
     pagination: PaginationParams = Depends(get_pagination_params),
-    search_params: BookSearchParams = Depends(BookSearchParams),
+    search_params: ReviewSearchParams = Depends(ReviewSearchParams),
     order_by: str = Query("created_at", description="Field to order by"),
     order_desc: bool = Query(True, description="Order descending"),
 ):
     """Get reviews owned by the current authenticated user."""
 
     return await review_service.get_user_reviews(
+        db=db,
+        user_id=current_user.id,
+        skip=pagination.skip,
+        limit=pagination.limit,
+        filters=search_params.model_dump(exclude_none=True),
+        order_by=order_by,
+        order_desc=order_desc,
+    )
+
+
+@router.get(
+    "/me/tags",
+    response_model=TagListResponse,
+    summary="Get current user's tags",
+    description="Retrieve tag's owned by the authenticated user",
+    dependencies=[Depends(rate_limit_api)],
+)
+async def get_my_tags(
+    db: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_verified_user),
+    pagination: PaginationParams = Depends(get_pagination_params),
+    search_params: TagSearchParams = Depends(TagSearchParams),
+    order_by: str = Query("created_at", description="Field to order by"),
+    order_desc: bool = Query(True, description="Order descending"),
+):
+    """Get tags owned by the current authenticated user."""
+
+    return await tag_service.get_user_tags(
         db=db,
         user_id=current_user.id,
         skip=pagination.skip,

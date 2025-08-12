@@ -16,6 +16,10 @@ from app.models.user_model import User, UserRole
 from app.tasks.email_tasks import send_welcome_email_task
 from app.services.auth_service import auth_service
 
+from app.crud.book_crud import book_repository
+from app.crud.review_crud import review_repository
+from app.crud.tag_crud import tag_repository
+
 from app.services.cache_service import cache_service
 from app.core.exception_utils import raise_for_status
 from app.core.exceptions import (
@@ -406,8 +410,7 @@ class UserService:
             condition=(user_to_change is None),
             exception=ResourceNotFound,
             detail=f"User with id {user_id_to_change} not found.",
-                resource_type="User",
-            
+            resource_type="User",
         )
 
         updated_user = await self.user_repository.update(
@@ -444,8 +447,8 @@ class UserService:
             raise ValidationError("User ID must be a positive integer")
 
         # 1. Fetch the user to delete
-        user_to_delete = await self.get_user_by_id(
-            db, user_id=user_id_to_delete, current_user=current_user
+        user_to_delete = await self.user_repository.get_with_all_content(
+            db=db, obj_id=user_id_to_delete
         )
 
         # 2. Perform authorization check
@@ -454,6 +457,21 @@ class UserService:
             target_user=user_to_delete,
             action="delete",
         )
+
+        for review in user_to_delete.reviews:
+            await review_repository.delete(db=db, obj_id=review.id)
+
+        # Delete all books created by the user
+        for book in user_to_delete.books:
+            book_with_tags = await book_repository.get_with_tags(db=db, obj_id=book.id)
+            if book_with_tags:
+                book_with_tags.tags = []
+                db.add(book_with_tags)
+                await db.commit()
+            await book_repository.delete(db=db, obj_id=book.id)
+
+        for tag in user_to_delete.tags_created:
+            await tag_repository.delete(db=db, obj_id=tag.id)
 
         # 3. Business rules validation
         await self._validate_user_deletion(db, user_to_delete, current_user)
@@ -480,10 +498,6 @@ class UserService:
         self, db: AsyncSession, user_data: UserUpdate, existing_user: User
     ) -> None:
         """Validates user update data for potential conflicts."""
-
-        if user_data.email and user_data.email != existing_user.email:
-            if await self.user_repository.get_by_email(db=db, email=user_data.email):
-                raise ResourceAlreadyExists("Email address is already in use")
 
         if user_data.username and user_data.username != existing_user.username:
             if await self.user_repository.get_by_username(
@@ -532,35 +546,3 @@ class UserService:
 
 # Singleton instance for the rest of the application to use
 user_services = UserService()
-
-
-
-# async def get_reviews_by_user(
-#         self,
-#         db: AsyncSession,
-#         user_id: int,
-#         current_user: Optional[User] = None
-#     ) -> List[Review]:
-#         """
-#         Get all reviews written by a specific user.
-        
-#         Args:
-#             db: Database session
-#             user_id: User ID
-#             current_user: Optional current user for authorization
-            
-#         Returns:
-#             List of reviews
-#         """
-#         user = await self.user_repository.get_with_reviews(user_id, db)
-        
-#         # Check if reviews are public or user has access
-#         if current_user:
-#             if current_user.id != user.id and current_user.role != UserRole.ADMIN:
-#                 # Filter out private reviews if any
-#                 return [r for r in user.reviews if getattr(r, 'is_public', True)]
-#         else:
-#             # Anonymous users only see public reviews
-#             return [r for r in user.reviews if getattr(r, 'is_public', True)]
-        
-#         return user.reviews

@@ -40,7 +40,6 @@ router = APIRouter(
 
 @router.get(
     "/bulk",
-    # response_model=List[BookResponseDetailed],
     response_model=List[BookResponse],
     status_code=status.HTTP_200_OK,
     summary="Get Multiple Books by IDs",
@@ -101,8 +100,7 @@ async def get_all_books(
 
 @router.post(
     "/",
-    # response_model=BookResponseWithUser, Add later on when tags and review is built
-    response_model=BookResponse,
+    response_model=BookResponseWithUser,
     summary="Create a new book",
     status_code=status.HTTP_200_OK,
     description="Create a new book entry",
@@ -134,21 +132,19 @@ async def create_book(
 @router.get(
     "/{book_id}",
     status_code=status.HTTP_200_OK,
-    # response_model=BookResponseDetailed,
-    response_model=BookResponse,
+    response_model=BookResponseDetailed,
     description="Get book by its id for book detail's page.",
     summary="Get book by id  profile",
     dependencies=[Depends(rate_limit_api)],
 )
 async def get_book_by_id(*, db: AsyncSession = Depends(get_session), book_id: int):
     """Get book by its ID"""
-    return await book_service.get_book_by_id(db=db, book_id=book_id)
+    return await book_service.get_book_details(db=db, book_id=book_id)
 
 
 @router.patch(
     "/{book_id}",
-    # response_model=BookResponseWithUser,
-    response_model=BookResponse,
+    response_model=BookResponseWithUser,
     summary="Update a book",
     status_code=status.HTTP_200_OK,
     description="Update a book by it's ID",

@@ -16,6 +16,8 @@ if TYPE_CHECKING:
     from app.models.review_model import Review
     from app.models.book_model import Book
     from app.models.review_vote_model import ReviewVote
+    from app.models.tag_model import Tag
+
 
 # Using PyEnum to avoid conflict with SQLModel's Enum
 class UserRole(str, PyEnum):
@@ -70,9 +72,6 @@ class User(UserBase, table=True):
     __tablename__ = "users"
 
     id: Optional[int] = Field(
-        min_length=3,
-        max_length=25,
-        regex="^[a-zA-Z0-9_-]+$",
         default=None,
         primary_key=True,
         description="Unique Identifier",
@@ -126,11 +125,12 @@ class User(UserBase, table=True):
         back_populates="user",
         # sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
+    tags_created: List["Tag"] = Relationship(back_populates="created_by_user")
 
     # --- Computed properties (data-focused) ---
     @property
     def is_admin(self) -> bool:
-        return self.role == UserRole.ADMIN  
+        return self.role == UserRole.ADMIN
 
     @property
     def is_moderator(self) -> bool:

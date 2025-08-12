@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 from datetime import datetime, timezone
@@ -14,7 +14,6 @@ from app.schemas.review_schema import (
     ReviewVoteResponse,
 )
 from app.models.user_model import User
-from app.models.book_model import Book
 from app.models.review_model import Review
 from app.models.review_vote_model import ReviewVote
 
@@ -379,76 +378,6 @@ class ReviewService:
         )
 
         return {"message": "Book deleted successfully"}
-
-    # ======ENGAGEMENT Operations======
-    # async def vote_on_review(
-    #     self,
-    #     db: AsyncSession,
-    #     *,
-    #     review_id: int,
-    #     is_helpful: bool,
-    #     current_user: User,
-    # ) -> ReviewVote:
-    #     """
-    #     Handles the business logic for a user voting on a review.
-    #     """
-    #     # 1. Fetch the review to be voted on.
-    #     review = await self.get_review_by_id(db=db, review_id=review_id)
-    #     raise_for_status(
-    #         condition=review is None,
-    #         exception=ResourceNotFound,
-    #         resource_type="Review",
-    #         detail=f"Review with id:{review} not found.",
-    #     )
-
-    #     # 2. Perform authorization check
-    #     self._check_authorization(
-    #         current_user=current_user,
-    #         review=review,
-    #         action="vote",
-    #     )
-
-    #     # 3. Check for an existing vote from this user on this review.
-    #     existing_vote = await self.review_vote_repository.get(
-    #         db, user_id=current_user.id, review_id=review_id
-    #     )
-
-    #     fields_to_update = {}
-
-    #     # 4. Determine the action based on the new vote and any existing vote.
-    #     if existing_vote:
-    #         if existing_vote.is_helpful == is_helpful:
-    #             # User is clicking the same button again - this means "un-vote".
-    #             await review_vote_repository.delete(db, vote=existing_vote)
-    #             if is_helpful:
-    #                 fields_to_update["helpful_count"] = review.helpful_count - 1
-    #             else:
-    #                 fields_to_update["unhelpful_count"] = review.unhelpful_count - 1
-    #         else:
-    #             # User is changing their vote (e.g., from helpful to unhelpful).
-    #             raise BadRequestException(
-    #                 detail="You have already voted on this review. To change your vote, please remove your existing vote first."
-    #             )
-    #     else:
-    #         # No existing vote - this is a new vote.
-    #         new_vote = ReviewVote(
-    #             user_id=current_user.id, review_id=review_id, is_helpful=is_helpful
-    #         )
-    #         await review_vote_repository.create(db, vote=new_vote)
-    #         if is_helpful:
-    #             fields_to_update["helpful_count"] = review.helpful_count + 1
-    #         else:
-    #             fields_to_update["unhelpful_count"] = review.unhelpful_count + 1
-
-    #     # 5. Save the updated counts on the review using the repository
-    #     updated_review = await self.review_repository.update(
-    #         db=db, review=review, fields_to_update=fields_to_update
-    #     )
-
-    #     # 6. Invalidate the cache for the updated review.
-    #     await cache_service.invalidate(Review, review_id)
-
-    #     return updated_review
 
     async def vote_on_review(
         self,

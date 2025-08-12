@@ -105,7 +105,7 @@ class AuthService:
             user.hashed_password = password_manager.hash_password(password)
             db.add(user)
             await db.commit()
-            await cache_service.invalidate_user(user.id)
+            await cache_service.invalidate(User, user.id)
             logger.info(f"Password re-hashed for user {user.id}")
 
         # Use the helper to create the token pair
@@ -170,7 +170,7 @@ class AuthService:
             fields_to_update={"tokens_valid_from_utc": datetime.now(timezone.utc)},
         )
         # Important: Invalidate the cache so the next fetch gets the new timestamp
-        await cache_service.invalidate_user(user.id)
+        await cache_service.invalidate(User, user.id)
         self._logger.info(f"All tokens revoked for user {user.id}")
 
     # -------PASSWORD------
@@ -361,7 +361,7 @@ class AuthService:
             db, user=user, fields_to_update={"is_verified": True}
         )
 
-        await cache_service.invalidate_user(user.id)
+        await cache_service.invalidate(User, user.id)
 
         logger.info(f"Email successfully verified for user {user.first_name}")
         return verified_user

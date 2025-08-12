@@ -182,7 +182,11 @@ class TokenManager:
             payload = jwt.decode(
                 token,
                 self.config.JWT_SECRET_KEY,
-                options={"verify_signature": False, "verify_exp": False,  "verify_aud": False,},
+                options={
+                    "verify_signature": False,
+                    "verify_exp": False,
+                    "verify_aud": False,
+                },
             )
             jti = payload.get("jti")
             exp = payload.get("exp")

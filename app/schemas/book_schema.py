@@ -16,14 +16,13 @@ from pydantic import (
     ConfigDict,
     field_validator,
     model_validator,
-    conint,
 )
-from pydantic.types import conint
 
-from app.schemas.tag_schema import TagResponse
-from app.schemas.user_schema import UserBasicResponse
+
 if TYPE_CHECKING:
+    from app.schemas.user_schema import UserBasicResponse
     from app.schemas.review_schema import ReviewResponse
+    from app.schemas.tag_schema import TagResponse
 
 
 class BookLanguage(str, Enum):
@@ -110,32 +109,33 @@ class BookBase(BaseModel):
 class BookCreate(BookBase):
     """Schema for creating a new book."""
 
-    # tags: Optional[List[str]] = Field(
-    #     default=None,
-    #     min_items=0,
-    #     max_items=10,
-    #     description="List of tag names to associate with the book",
-    #     examples=[["fiction", "classic", "american-literature"]],
-    # )
+    tags: Optional[List[str]] = Field(
+        default=None,
+        min_items=0,
+        max_items=10,
+        description="List of tag names to associate with the book",
+        examples=[["fiction", "classic", "american-literature"]],
+    )
 
-    # @field_validator("tags")
-    # @classmethod
-    # def validate_tags(cls, v: Optional[List[str]]) -> Optional[List[str]]:
-    #     """Validate and normalize tags."""
-    #     if v is None:
-    #         return v
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        """Validate and normalize tags."""
+        if v is None:
+            return v
 
-    #     # Remove duplicates and normalize
-    #     normalized_tags = []
-    #     seen = set()
+        # Remove duplicates and normalize
+        normalized_tags = []
+        seen = set()
 
-    #     for tag in v:
-    #         normalized = tag.strip().lower()
-    #         if normalized and normalized not in seen:
-    #             seen.add(normalized)
-    #             normalized_tags.append(normalized)
+        for tag in v:
+            normalized = tag.strip().lower()
+            if normalized and normalized not in seen:
+                seen.add(normalized)
+                normalized_tags.append(normalized)
 
-    #     return normalized_tags if normalized_tags else None
+        return normalized_tags if normalized_tags else None
+
     pass
 
 
@@ -178,12 +178,12 @@ class BookUpdate(BookBase):
     published_date: Optional[date] = Field(
         ..., description="The publication date of the book", examples=["1925-04-10"]
     )
-    # tags: Optional[List[str]] = Field(
-    #     None,
-    #     min_items=0,
-    #     max_items=10,
-    #     description="List of tag names to associate with the book",
-    # )
+    tags: Optional[List[str]] = Field(
+        None,
+        min_items=0,
+        max_items=10,
+        description="List of tag names to associate with the book",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -235,9 +235,16 @@ class BookResponseDetailed(BookResponseWithUser):
         default_factory=list, description="Reviews for this book"
     )
     average_rating: Optional[float] = Field(
-        None, ge=1.0, le=5.0, description="Average rating from all reviews"
+        None, ge=0.0, le=5.0, description="Average rating from all reviews"
     )
     review_count: int = Field(default=0, ge=0, description="Total number of reviews")
+
+
+from app.schemas.user_schema import UserBasicResponse
+from app.schemas.review_schema import ReviewResponse
+from app.schemas.tag_schema import TagResponse
+
+BookResponseDetailed.model_rebuild()
 
 
 class BookListResponse(BaseModel):
@@ -275,9 +282,6 @@ class BookSearchParams(BaseModel):
     language: Optional[str] = Field(
         None, min_length=2, max_length=50, description="Filter by language"
     )
-    # tags: Optional[List[str]] = Field(
-    #     None, min_items=1, max_items=10, description="Filter by tags"
-    # )
     published_after: Optional[date] = Field(
         None, description="Filter books published after this date"
     )

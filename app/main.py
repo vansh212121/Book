@@ -7,8 +7,9 @@ from app.core.middleware import register_middlewares
 from app.db.session import db  # Import the database instance
 
 from app.db import base
+
 # Routers
-from app.api.v1.endpoints import user, auth, admin, book, review
+from app.api.v1.endpoints import user, auth, admin, book, review, tag
 
 
 @asynccontextmanager
@@ -19,7 +20,7 @@ async def lifespan(app: FastAPI):
     # Startup: Connect to the database
     await db.connect()
 
-    yield  # The application runs here
+    yield 
 
     # Shutdown: Disconnect from the database
     await db.disconnect()
@@ -47,6 +48,7 @@ def create_application() -> FastAPI:
     app.include_router(admin.router)
     app.include_router(book.router)
     app.include_router(review.router)
+    app.include_router(tag.router)
 
     return app
 

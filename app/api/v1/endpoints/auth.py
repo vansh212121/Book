@@ -10,11 +10,8 @@ from app.core.config import settings
 from app.db.session import get_session
 from app.utils.deps import (
     get_current_verified_user,
-    # rate_limit_heavy,
     rate_limit_api,
     rate_limit_auth,
-    require_user,
-    require_moderator,
 )
 from app.models.user_model import UserRole, User
 from app.schemas.user_schema import (
@@ -24,7 +21,6 @@ from app.schemas.user_schema import (
 from app.schemas.token_schema import TokenResponse
 from app.schemas.auth_schema import (
     TokenRefresh,
-    PasswordChange,
     PasswordResetConfirm,
     PasswordResetRequest,
     EmailChangeRequest,
@@ -150,15 +146,14 @@ async def admin_login_for_access_token(
 async def logout_user(
     # --- THE FIX IS HERE ---
     # Get the tokens from the request body
-    token:TokenRefresh,
-    access_token:str = Depends(reusable_oauth2),
+    token: TokenRefresh,
+    access_token: str = Depends(reusable_oauth2),
     current_user: User = Depends(get_current_verified_user),
 ):
     await auth_service.logout(
         access_token=access_token, refresh_token=token.refresh_token
     )
     return  # A 204 response has no body
-
 
 
 @router.post(
@@ -179,31 +174,12 @@ async def rotate_tokens(
     This implements token rotation for enhanced security.
     """
 
-    return await auth_service.refresh_token(db=db, refresh_token=token_data.refresh_token)
+    return await auth_service.refresh_token(
+        db=db, refresh_token=token_data.refresh_token
+    )
 
 
 # -------PASSWORD--------
-# @router.post(
-#     "/change-password",
-#     response_model=Dict[str, str],
-#     status_code=status.HTTP_202_ACCEPTED,
-#     summary="Request password reset",
-#     description="Request a password reset link via email",
-#     dependencies=[Depends(rate_limit_auth)],
-# )
-# async def change_password(
-#     *,
-#     db: AsyncSession = Depends(get_session),
-#     current_user: User = Depends(get_current_verified_user),
-#     password_data: PasswordChange,
-# ):
-#     await auth_service.change_password(
-#         db=db, password_data=password_data, user=current_user
-#     )
-
-#     return {"message": "Password updated successfully"}
-
-
 @router.post(
     "/password-reset-request",
     response_model=Dict[str, str],
@@ -225,9 +201,7 @@ async def request_password_reset(
 
     """
 
-    await auth_service.request_password_reset(
-        db=db, email=email.email
-    )
+    await auth_service.request_password_reset(db=db, email=email.email)
 
     return {"message": f"Password reset email sent successfully to {email.email}"}
 

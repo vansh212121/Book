@@ -9,7 +9,7 @@ from app.db.session import get_session
 from app.utils.deps import (
     get_current_verified_user,
     get_pagination_params,
-    rate_limit_heavy,
+    rate_limit_api,
     require_admin,
     require_moderator,
     PaginationParams,
@@ -40,7 +40,7 @@ router = APIRouter(
     response_model=UserResponse,
     summary="Get user by id",
     description="Get all information for the user by id (moderators and admin only)",
-    dependencies=[Depends(rate_limit_heavy), Depends(require_moderator)],
+    dependencies=[Depends(rate_limit_api), Depends(require_moderator)],
 )
 async def get_user_by_id(
     db: AsyncSession = Depends(get_session),
@@ -59,7 +59,7 @@ async def get_user_by_id(
     response_model=Dict[str, str],
     summary="Activate a users account",
     description="Activate a user's account using his id(Admins only).",
-    dependencies=[Depends(require_admin)],
+    dependencies=[Depends(require_admin), Depends(rate_limit_api)],
 )
 async def activate_user(
     db: AsyncSession = Depends(get_session),
@@ -90,7 +90,7 @@ async def activate_user(
     status_code=status.HTTP_200_OK,
     summary="Change user role",
     description="Change a user's role (admin only)",
-    dependencies=[Depends(require_admin), Depends(rate_limit_heavy)],
+    dependencies=[Depends(require_admin), Depends(rate_limit_api)],
 )
 async def change_user_role(
     db: AsyncSession = Depends(get_session),
@@ -161,7 +161,7 @@ async def get_all_users(
     response_model=UserResponse,
     summary="Update user by id",
     description="Update user profile by id",
-    dependencies=[Depends(rate_limit_heavy), Depends(require_admin)],
+    dependencies=[Depends(rate_limit_api), Depends(require_admin)],
 )
 async def update_user(
     db: AsyncSession = Depends(get_session),
@@ -199,7 +199,7 @@ async def update_user(
     response_model=Dict[str, str],
     summary="Deactivate user by id",
     description="Deactivate user profile by id",
-    dependencies=[Depends(rate_limit_heavy), Depends(require_admin)],
+    dependencies=[Depends(rate_limit_api), Depends(require_admin)],
 )
 async def deactivate_user(
     db: AsyncSession = Depends(get_session),
@@ -226,10 +226,10 @@ async def deactivate_user(
 @router.delete(
     "/{user_id}",
     status_code=status.HTTP_200_OK,
-    response_model=UserResponse,
+    response_model=Dict[str, str],
     summary="Delete user by id",
     description="Delete user profile by id",
-    dependencies=[Depends(rate_limit_heavy), Depends(require_admin)],
+    dependencies=[Depends(rate_limit_api), Depends(require_admin)],
 )
 async def delete_user(
     db: AsyncSession = Depends(get_session),
@@ -237,11 +237,8 @@ async def delete_user(
     user_id: int,
     current_user: User = Depends(get_current_verified_user),
 ):
-    user_to_deactivate = await user_services.delete_user(
+    user_to_delete = await user_services.delete_user(
         db=db, user_id_to_delete=user_id, current_user=current_user
     )
 
-    return user_to_deactivate
-
-
-# STATISTICS AND EXPORT COMES LATER
+    return {"message" : "User delete succesfully."}

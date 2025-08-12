@@ -3,6 +3,7 @@ from typing import Optional, List, Dict, Any, TypeVar, Generic, Tuple
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 
+from sqlalchemy.orm import selectinload
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select, func, and_, or_, delete
 
@@ -136,6 +137,29 @@ class UserRepository(BaseRepository[User]):
 
         result = await db.execute(query)
         return result.scalar_one()
+
+    @handle_exceptions(
+        default_exception=InternalServerError,
+        message="An unexpected database error occurred.",
+    )
+    async def get_with_all_content(
+        self, db: AsyncSession, *, obj_id: int
+    ) -> Optional[User]:
+        """
+        Retrieves a user and eagerly loads all their content relationships (books, reviews)
+        to prepare for a cascade delete operation.
+        """
+        statement = (
+            select(self.model)
+            .where(self.model.id == obj_id)
+            .options(
+                selectinload(self.model.books),
+                selectinload(self.model.reviews),
+                selectinload(self.model.tags_created),
+            )
+        )
+        result = await db.execute(statement)
+        return result.scalar_one_or_none()
 
     @handle_exceptions(
         default_exception=InternalServerError,
@@ -276,20 +300,3 @@ class UserRepository(BaseRepository[User]):
 
 
 user_repository = UserRepository()
-
-
-
-
-
-    # async def get_with_reviews(self, db: AsyncSession, *, obj_id: int) -> Optional[User]:
-    #     """
-    #     Retrieves a user and eagerly loads their reviews relationship.
-    #     This is a performance optimization to prevent N+1 query issues.
-    #     """
-    #     statement = (
-    #         select(self.model)
-    #         .where(self.model.id == obj_id)
-    #         .options(selectinload(self.model.reviews)) # <-- This is the eager loading instruction
-    #     )
-    #     result = await db.execute(statement)
-    #     return result.scalar_one_or_none()

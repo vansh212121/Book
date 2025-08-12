@@ -4,15 +4,19 @@ from typing import Optional, Dict, Any, List
 from sqlmodel.ext.asyncio.session import AsyncSession
 from datetime import datetime, timezone
 from app.crud.book_crud import book_repository
+from app.crud.tag_crud import tag_repository
 from app.schemas.book_schema import (
     BookCreate,
     BookUpdate,
-    BookSearchParams,
+    BookResponseDetailed,
     BookListResponse,
 )
-from app.models.user_model import User, UserRole
+from app.models.user_model import User
 from app.models.book_model import Book
-from app.services.auth_service import auth_service
+from app.models.book_tag_model import BookTag
+
+from app.services.tag_service import tag_service
+from sqlalchemy import delete
 
 from app.services.cache_service import cache_service
 from app.core.exception_utils import raise_for_status
@@ -41,7 +45,30 @@ class BookService:
         while still allowing for dependency injection during tests.
         """
         self.book_repository = book_repository
+        self.tag_repository = tag_repository
         self._logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+
+    async def _process_and_link_tags(
+        self, db: AsyncSession, *, book: Book, tag_names: List[str], current_user: User
+    ) -> Book:
+        # Remove all existing links first
+
+        statement = delete(BookTag).where(BookTag.book_id == book.id)
+        await db.execute(statement)
+
+        if tag_names:
+            for tag_name in tag_names:
+                tag = await tag_service.get_or_create_tag(
+                    db=db, tag_name=tag_name, current_user=current_user
+                )
+                link = BookTag(
+                    book_id=book.id, tag_id=tag.id, created_by=current_user.id
+                )
+                db.add(link)
+
+        await db.commit()
+        await db.refresh(book, attribute_names=["tags"])
+        return book
 
     def _check_authorization(self, current_user: User, book: Book, action: str) -> None:
         """
@@ -78,7 +105,7 @@ class BookService:
             )
 
             await cache_service.set(book)
-            
+
         return book
 
     async def get_by_ids(self, db: AsyncSession, *, book_ids: List[int]) -> List[Book]:
@@ -171,6 +198,89 @@ class BookService:
         self._logger.info(f"Book list retrieved : {len(books)} books returned")
         return response
 
+    async def get_book_details(
+        self, db: AsyncSession, *, book_id: int
+    ) -> BookResponseDetailed:
+        """
+        Gets a book by its ID, calculates statistics, and returns the detailed response.
+        """
+        if book_id <= 0:
+            raise ValidationError("Book ID must be a positive integer")
+
+        # Caching a detailed object with all relationships can be complex.
+        # For simplicity and to always show the latest reviews, we will bypass the cache
+        # for this specific detailed view and fetch directly from the DB.
+
+        # 1. Use our new high-performance repository method
+        book = await self.book_repository.get_details(db=db, obj_id=book_id)
+
+        raise_for_status(
+            condition=(book is None),
+            exception=ResourceNotFound,
+            resource_type="Book",
+            detail=f"Book with id{book_id} not found.",
+        )
+
+        # 2. Perform business logic: calculate statistics
+        review_count = len(book.reviews)
+        average_rating = 0.0
+        if review_count > 0:
+            total_rating = sum(review.rating for review in book.reviews)
+            average_rating = round(total_rating / review_count, 2)
+
+        # 3. Construct the final, detailed response schema
+        #    This perfectly matches what the API endpoint's response_model expects.
+        return BookResponseDetailed(
+            id=book.id,
+            user_id=book.user_id,
+            created_at=book.created_at,
+            updated_at=book.updated_at,
+            title=book.title,
+            author=book.author,
+            publisher=book.publisher,
+            language=book.language,
+            page_count=book.page_count,
+            published_date=book.published_date,
+            tags=book.tags,
+            reviews=book.reviews,
+            user=book.user,  # Pass the user object directly
+            average_rating=average_rating,
+            review_count=review_count,
+        )
+
+    async def get_books_by_tag(
+        self,
+        db: AsyncSession,
+        *,
+        skip: int = 0,
+        limit: int = 50,
+    ) -> BookListResponse:
+        """"""
+
+        # Input validation
+        if skip < 0:
+            raise ValidationError("Skip parameter must be non-negative")
+        if limit <= 0 or limit > 100:
+            raise ValidationError("Limit must be between 1 and 100")
+
+        books, total = await book_repository.get_all_by_tag(
+            db=db,
+            skip=skip,
+            limit=limit,
+        )
+
+        # Calculate pagination info
+        page = (skip // limit) + 1
+        total_pages = (total + limit - 1) // limit  # Ceiling division
+
+        # Construct the response schema
+        response = BookListResponse(
+            items=books, total=total, page=page, pages=total_pages, size=limit
+        )
+
+        self._logger.info(f"Book list retrieved : {len(books)} books returned")
+        return response
+
     async def create_book(
         self, db: AsyncSession, *, book_data: BookCreate, current_user: User
     ) -> Book:
@@ -186,7 +296,7 @@ class BookService:
         )
 
         # Prepare the book model
-        book_dict = book_data.model_dump()
+        book_dict = book_data.model_dump(exclude={"tags"})
         book_dict["created_at"] = datetime.now(timezone.utc)
         book_dict["updated_at"] = datetime.now(timezone.utc)
         book_dict["user_id"] = current_user.id
@@ -194,6 +304,17 @@ class BookService:
         book_to_create = Book(**book_dict)
         #  3. Delegate creation to the repository
         new_book = await self.book_repository.create(db=db, obj_in=book_to_create)
+        await db.refresh(new_book)
+
+        # 4. If tags were provided, process and link them
+        if book_data.tags:
+            new_book = await self._process_and_link_tags(
+                db=db,
+                book=new_book,
+                tag_names=book_data.tags,
+                current_user=current_user,
+            )
+
         self._logger.info(f"New book created: {new_book.title}")
 
         return new_book
@@ -219,7 +340,9 @@ class BookService:
 
         await self._validate_book_update(db, book_data, book_to_update)
 
-        update_dict = book_data.model_dump(exclude_unset=True, exclude_none=True)
+        update_dict = book_data.model_dump(
+            exclude={"tags"}, exclude_unset=True, exclude_none=True
+        )
 
         # Remove timestamp fields that should not be manually updated
         for ts_field in {"created_at", "updated_at"}:
@@ -230,6 +353,14 @@ class BookService:
             book=book_to_update,
             fields_to_update=update_dict,
         )
+
+        if book_data.tags is not None:
+            book_to_update = await self._process_and_link_tags(
+                db=db,
+                book=book_to_update,
+                tag_names=book_data.tags,
+                current_user=current_user,
+            )
 
         await cache_service.invalidate(Book, book_id_to_update)
 
@@ -323,61 +454,3 @@ class BookService:
 
 
 book_service = BookService()
-
-# PROCESS TAGS COME HERE LATER ON
-
-#     async def _process_tags(self, tag_names: Optional[List[str]]) -> List[Tag]:
-#         """
-#         Process tag names with get-or-create logic.
-#         """
-#         if not tag_names:
-#             return []
-
-#         tags_to_assign = []
-#         processed_names: Set[str] = set()
-
-#         for tag_name in tag_names:
-#             # Normalize tag name
-#             normalized_name = tag_name.strip().lower()
-
-#             # Skip empty or duplicate tags
-#             if not normalized_name or normalized_name in processed_names:
-#                 continue
-
-#             processed_names.add(normalized_name)
-
-#             # Get or create tag
-#             tag = await self.tag_repository.get_by_name(normalized_name)
-#             if not tag:
-#                 tag = await self.tag_repository.create(
-#                     Tag(name=normalized_name)
-#                 )
-#                 logger.info(f"Created new tag: {normalized_name}")
-
-#             tags_to_assign.append(tag)
-
-#         return tags_to_assign
-
-
-#     async def _process_tags(self, db: AsyncSession, tag_names: List[str]) -> List[Tag]:
-#         """
-#         Process tag names into Tag objects (get or create).
-#         """
-#         tags = []
-#         seen = set()
-
-#         for tag_name in tag_names:
-#             # Normalize tag name
-#             normalized_name = tag_name.strip().lower()
-
-#             # Skip empty or duplicate tags
-#             if not normalized_name or normalized_name in seen:
-#                 continue
-
-#             seen.add(normalized_name)
-
-#             # Get or create tag
-#             tag = await self.tag_repository.get_or_create(db=db, name=normalized_name)
-#             tags.append(tag)
-
-#         return tags

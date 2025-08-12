@@ -24,3 +24,4 @@ pytest-asyncio
 httpx[http2]
 aiosqlite
 fakeredis[aioredis]
+schemathesis

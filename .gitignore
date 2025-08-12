@@ -6,7 +6,6 @@ env/
 venv/
 ENV/
 VENV/
-
 # --- Python Cache & Compiled Files ---
 # Ignore Python's bytecode cache and compiled files.
 __pycache__/
